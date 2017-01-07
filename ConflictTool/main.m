@@ -82,36 +82,10 @@ typedef struct {
             }
         }
     }
-//    NSInteger offset = 0;
     NSMutableString *content = [NSMutableString stringWithString:content2];
     NSMutableArray *allDiffs = [NSMutableArray array];
     [allDiffs addObjectsFromArray:diff2];
     [allDiffs addObjectsFromArray:diff1];
-//    InsertedInfo *a1 = [[InsertedInfo alloc] init];
-//    a1.location = 3;
-//    a1.insertedString = @"aa";
-//    [allDiffs addObject:a1];
-//    InsertedInfo *a2 = [[InsertedInfo alloc] init];
-//    a2.location = 4;
-//    a2.insertedString = @"bb";
-//    [allDiffs addObject:a2];
-//    InsertedInfo *a3 = [[InsertedInfo alloc] init];
-//    a3.location = 5;
-//    a3.insertedString = @"cc";
-//    [allDiffs addObject:a3];
-//    InsertedInfo *a4 = [[InsertedInfo alloc] init];
-//    a4.location = 3;
-//    a4.insertedString = @"dd";
-//    [allDiffs addObject:a4];
-//    RemovedInfo *a5 = [[RemovedInfo alloc] init];
-//    a5.removedRange = NSMakeRange(3, 4);
-//    [allDiffs addObject:a5];
-//    RemovedInfo *a6 = [[RemovedInfo alloc] init];
-//    a6.removedRange = NSMakeRange(4, 5);
-//    [allDiffs addObject:a6];
-//    RemovedInfo *a7 = [[RemovedInfo alloc] init];
-//    a7.removedRange = NSMakeRange(3, 5);
-//    [allDiffs addObject:a7];
     [allDiffs sortUsingComparator:^NSComparisonResult(id  _Nonnull obj1, id  _Nonnull obj2) {
         NSUInteger location1;
         if ([obj1 isKindOfClass:[InsertedInfo class]]) {
@@ -137,12 +111,10 @@ typedef struct {
         if ([info isKindOfClass:[InsertedInfo class]]) {
             InsertedInfo *insertedInfo = (InsertedInfo *)info;
             [content insertString:insertedInfo.insertedString atIndex:insertedInfo.location];
-//            offset += insertedInfo.insertedString.length;
         }
         if ([info isKindOfClass:[RemovedInfo class]]) {
             RemovedInfo *removedInfo = (RemovedInfo *)info;
             [content replaceCharactersInRange:NSMakeRange(removedInfo.removedRange.location, removedInfo.removedRange.length) withString:@""];
-//            offset -= removedInfo.removedRange.length;
         }
     }
     NSMutableArray *lines = [[NSMutableArray alloc] initWithArray:[content componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]];
@@ -347,13 +319,13 @@ typedef struct {
     NSUInteger endLine = 0;
     for (NSUInteger i = 0; i < lines.count; ++i) {
         NSString *line = lines[i];
-        if ([line containsString:@"<<<<<<<"]) {
+        if ([line hasPrefix:@"<<<<<<<"]) {
             beginLine = i;
-        } else if ([line containsString:@"|||||||"]) {
+        } else if ([line hasPrefix:@"|||||||"]) {
             midLine = i;
-        } else if ([line containsString:@"======="]) {
+        } else if ([line hasPrefix:@"======="]) {
             endLine = i;
-        } else if ([line containsString:@">>>>>>>"]) {
+        } else if ([line hasPrefix:@">>>>>>>"]) {
             if (midLine > beginLine && endLine > midLine && i > endLine) {
                 return [[Conflict alloc] initWithLines:lines mark1:beginLine mark2:midLine mark3:endLine mark4:i];
             }
@@ -379,32 +351,42 @@ int main(int argc, const char * argv[]) {
             Conflict *conflict = [ConflictManager findFirstConflictInLines:lines];
             while (conflict) {
                 NSArray *resultLines = [conflict resolveConflict];
+                printf("冲突内容：\n");
+                outputLines([lines subarrayWithRange:NSMakeRange(conflict.mark1, conflict.mark4 - conflict.mark1 + 1)]);
                 if (resultLines) {
-                    printf("解决冲突前：\n");
-                    outputLines([lines subarrayWithRange:NSMakeRange(conflict.mark1, conflict.mark4 - conflict.mark1 + 1)]);
-                    printf("解决冲突后：\n");
+                    printf("自动解决冲突结果：\n");
                     if (resultLines.count > 0) {
                         outputLines(resultLines);
                     } else {
                         printf("<no content>\n");
                     }
-                    printf("自动解决冲突(y/n)？");
-                    while (YES) {
-                        char ch = getchar();
-                        if (ch == 'y' || ch == 'Y') {
-                            [lines replaceObjectsInRange:NSMakeRange(conflict.mark1, conflict.mark4 - conflict.mark1 + 1) withObjectsFromArray:resultLines];
-                            [ConflictManager saveLines:lines toFile:fileName];
-                            conflict = [ConflictManager findFirstConflictInLines:lines];
-                            break;
-                        } else if (ch == 'n' || ch == 'N') {
-                            [conflict saveConflict];
-                            return 0;
-                        }
-                    }
                 } else {
-                    printf("无法自动解决冲突，请手动解决！\n");
-                    [conflict saveConflict];
-                    return 0;
+                    printf("无法自动解决冲突！\n");
+                }
+                printf("请选择操作(a:自动解决/h:使用HEAD版本/t:使用另一版本/m:手动解决):");
+                while (YES) {
+                    char ch = getchar();
+                    if (resultLines && (ch == 'a' || ch == 'A')) {
+                        [lines replaceObjectsInRange:NSMakeRange(conflict.mark1, conflict.mark4 - conflict.mark1 + 1) withObjectsFromArray:resultLines];
+                        [ConflictManager saveLines:lines toFile:fileName];
+                        conflict = [ConflictManager findFirstConflictInLines:lines];
+                        break;
+                    } else if (ch == 'h' || ch == 'H') {
+                        [lines removeObjectsInRange:NSMakeRange(conflict.mark2, conflict.mark4 - conflict.mark2 + 1)];
+                        [lines removeObjectsInRange:NSMakeRange(conflict.mark1, 1)];
+                        [ConflictManager saveLines:lines toFile:fileName];
+                        conflict = [ConflictManager findFirstConflictInLines:lines];
+                        break;
+                    } else if (ch == 't' || ch == 'T') {
+                        [lines removeObjectsInRange:NSMakeRange(conflict.mark4, 1)];
+                        [lines removeObjectsInRange:NSMakeRange(conflict.mark1, conflict.mark3 - conflict.mark1 + 1)];
+                        [ConflictManager saveLines:lines toFile:fileName];
+                        conflict = [ConflictManager findFirstConflictInLines:lines];
+                        break;
+                    } else if (ch == 'm' || ch == 'M') {
+                        [conflict saveConflict];
+                        return 0;
+                    }
                 }
             }
             printf("No conflict in file: %s\n", [fileName cStringUsingEncoding:NSUTF8StringEncoding]);
