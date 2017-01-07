@@ -346,13 +346,14 @@ int main(int argc, const char * argv[]) {
     @autoreleasepool {
         NSArray *files = [ConflictManager conflictFiles];
         for (NSString *fileName in files) {
-            printf("Finding conflict in file: %s\n", [fileName cStringUsingEncoding:NSUTF8StringEncoding]);
+            printf("正在以下文件\"%s\"中查找冲突……", [fileName cStringUsingEncoding:NSUTF8StringEncoding]);
             NSMutableArray *lines = [ConflictManager linesFromFile:fileName];
             Conflict *conflict = [ConflictManager findFirstConflictInLines:lines];
             while (conflict) {
-                NSArray *resultLines = [conflict resolveConflict];
                 printf("冲突内容：\n");
                 outputLines([lines subarrayWithRange:NSMakeRange(conflict.mark1, conflict.mark4 - conflict.mark1 + 1)]);
+                printf("正在解决冲突，请稍候……\n");
+                NSArray *resultLines = [conflict resolveConflict];
                 if (resultLines) {
                     printf("自动解决冲突结果：\n");
                     if (resultLines.count > 0) {
@@ -363,7 +364,7 @@ int main(int argc, const char * argv[]) {
                 } else {
                     printf("无法自动解决冲突！\n");
                 }
-                printf("请选择操作(a:自动解决/h:使用HEAD版本/t:使用另一版本/m:手动解决):");
+                printf("请选择操作(a:自动解决|h:使用HEAD版本|t:使用另一版本|m:手动解决):");
                 while (YES) {
                     char ch = getchar();
                     if (resultLines && (ch == 'a' || ch == 'A')) {
@@ -385,11 +386,21 @@ int main(int argc, const char * argv[]) {
                         break;
                     } else if (ch == 'm' || ch == 'M') {
                         [conflict saveConflict];
+                        [fileName writeToFile:[[ConflictManager currentDirectoryPath] stringByAppendingPathComponent:@"conflict_file.con"] atomically:YES encoding:NSUTF8StringEncoding error:nil];
                         return 0;
                     }
                 }
             }
-            printf("No conflict in file: %s\n", [fileName cStringUsingEncoding:NSUTF8StringEncoding]);
+            printf("文件\"%s\"已无冲突，是否暂存文件(y/n)？", [fileName cStringUsingEncoding:NSUTF8StringEncoding]);
+            while (YES) {
+                char ch = getchar();
+                if (ch == 'y' || ch == 'Y') {
+                    [ConflictManager runGitCommand:@[@"add", fileName]];
+                    break;
+                } else if (ch == 'n' || ch == 'N') {
+                    break;
+                }
+            }
         }
     }
     return 0;
