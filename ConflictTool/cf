@@ -1,6 +1,12 @@
 #!/bin/bash
 conflict
 
+while [ -f conflict_content.con ]
+do
+vim conflict_content.con
+conflict
+done
+
 if [ -f conflict_file.con ]; then
 ID1=`cat conflict_ID1.con`
 ID2=`cat conflict_ID2.con`

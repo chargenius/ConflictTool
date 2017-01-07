@@ -14,25 +14,12 @@ typedef struct {
     NSUInteger length;
 } CommonLinesResult;
 
-@interface RemovedInfo : NSObject
-
+@interface ModifiedInfo : NSObject
 @property (nonatomic, assign) NSRange removedRange;
-
+@property (nonatomic, copy) NSArray *insertedLines;
 @end
 
-@implementation RemovedInfo
-
-@end
-
-@interface InsertedInfo : NSObject
-
-@property (nonatomic, assign) NSUInteger location;
-@property (nonatomic, copy) NSString *insertedString;
-
-@end
-
-@implementation InsertedInfo
-
+@implementation ModifiedInfo
 @end
 
 @interface ConflictManager : NSObject
@@ -68,13 +55,13 @@ typedef struct {
 }
 
 - (NSArray *)resolveConflict {
-    NSString *content1 = [self contentFromLines:self.lines begin:self.mark1 end:self.mark2];
-    NSString *content2 = [self contentFromLines:self.lines begin:self.mark2 end:self.mark3];
-    NSString *content3 = [self contentFromLines:self.lines begin:self.mark3 end:self.mark4];
+    NSArray *content1 = [self.lines subarrayWithRange:NSMakeRange(self.mark1 + 1, self.mark2 - self.mark1 - 1)];
+    NSArray *content2 = [self.lines subarrayWithRange:NSMakeRange(self.mark2 + 1, self.mark3 - self.mark2 - 1)];
+    NSArray *content3 = [self.lines subarrayWithRange:NSMakeRange(self.mark3 + 1, self.mark4 - self.mark3 - 1)];
     NSMutableArray *diff1 = [NSMutableArray array];
-    [self getDiff:diff1 content1:content2 range1:NSMakeRange(0, content2.length) content2:content1 range2:NSMakeRange(0, content1.length)];
+    [self getDiff:diff1 content1:content2 range1:NSMakeRange(0, content2.count) content2:content1 range2:NSMakeRange(0, content1.count)];
     NSMutableArray *diff2 = [NSMutableArray array];
-    [self getDiff:diff2 content1:content2 range1:NSMakeRange(0, content2.length) content2:content3 range2:NSMakeRange(0, content3.length)];
+    [self getDiff:diff2 content1:content2 range1:NSMakeRange(0, content2.count) content2:content3 range2:NSMakeRange(0, content3.count)];
     for (id info1 in diff1) {
         for (id info2 in diff2) {
             if ([self isConflictForDiff1:info1 diff2:info2]) {
@@ -82,81 +69,43 @@ typedef struct {
             }
         }
     }
-    NSMutableString *content = [NSMutableString stringWithString:content2];
+    NSMutableArray *content = [NSMutableArray arrayWithArray:content2];
     NSMutableArray *allDiffs = [NSMutableArray array];
     [allDiffs addObjectsFromArray:diff2];
     [allDiffs addObjectsFromArray:diff1];
-    [allDiffs sortUsingComparator:^NSComparisonResult(id  _Nonnull obj1, id  _Nonnull obj2) {
-        NSUInteger location1;
-        if ([obj1 isKindOfClass:[InsertedInfo class]]) {
-            location1 = [(InsertedInfo *)obj1 location];
-        } else {
-            location1 = [(RemovedInfo *)obj1 removedRange].location;
-        }
-        NSUInteger location2;
-        if ([obj2 isKindOfClass:[InsertedInfo class]]) {
-            location2 = [(InsertedInfo *)obj2 location];
-        } else {
-            location2 = [(RemovedInfo *)obj2 removedRange].location;
-        }
+    [allDiffs sortUsingComparator:^NSComparisonResult(ModifiedInfo *obj1, ModifiedInfo *obj2) {
+        NSUInteger location1 = obj1.removedRange.location;
+        NSUInteger location2 = obj2.removedRange.location;
         if ([@(location1) compare:@(location2)] != NSOrderedSame) {
             return [@(location2) compare:@(location1)];
-        } else if ([obj1 class] != [obj2 class]) {
-            return [obj1 isKindOfClass:[InsertedInfo class]] ? NSOrderedDescending : NSOrderedAscending;
         } else {
-            return NSOrderedSame;
+            return [@(obj2.removedRange.length) compare:@(obj1.removedRange.length)];
         }
     }];
-    for (id info in allDiffs) {
-        if ([info isKindOfClass:[InsertedInfo class]]) {
-            InsertedInfo *insertedInfo = (InsertedInfo *)info;
-            [content insertString:insertedInfo.insertedString atIndex:insertedInfo.location];
+    for (ModifiedInfo *info in allDiffs) {
+        if (info.removedRange.length > 0) {
+            [content removeObjectsInRange:info.removedRange];
         }
-        if ([info isKindOfClass:[RemovedInfo class]]) {
-            RemovedInfo *removedInfo = (RemovedInfo *)info;
-            [content replaceCharactersInRange:NSMakeRange(removedInfo.removedRange.location, removedInfo.removedRange.length) withString:@""];
+        if (info.insertedLines.count > 0) {
+            [content insertObjects:info.insertedLines atIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(info.removedRange.location, info.insertedLines.count)]];
         }
     }
-    NSMutableArray *lines = [[NSMutableArray alloc] initWithArray:[content componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]];
-    [lines removeLastObject];
-    return lines.copy;
+    return content.copy;
 }
 
-- (BOOL)isConflictForDiff1:(id)diff1 diff2:(id)diff2 {
-    if ([diff1 isKindOfClass:[InsertedInfo class]] && [diff2 isKindOfClass:[InsertedInfo class]]) {
-        return NO;
-    } else if ([diff1 isKindOfClass:[InsertedInfo class]] && [diff2 isKindOfClass:[RemovedInfo class]]) {
-        InsertedInfo *info1 = (InsertedInfo *)diff1;
-        RemovedInfo *info2 = (RemovedInfo *)diff2;
-        return info1.location > info2.removedRange.location && info1.location < info2.removedRange.location + info2.removedRange.length;
-    } else if ([diff1 isKindOfClass:[RemovedInfo class]] && [diff2 isKindOfClass:[InsertedInfo class]]) {
-        RemovedInfo *info1 = (RemovedInfo *)diff1;
-        InsertedInfo *info2 = (InsertedInfo *)diff2;
-        return info2.location > info1.removedRange.location && info2.location < info1.removedRange.location + info1.removedRange.length;
-    } else {
-        RemovedInfo *info1 = (RemovedInfo *)diff1;
-        RemovedInfo *info2 = (RemovedInfo *)diff2;
-        return info1.removedRange.location < info2.removedRange.location + info2.removedRange.length && info2.removedRange.location < info1.removedRange.location + info1.removedRange.length;
-    }
+- (BOOL)isConflictForDiff1:(ModifiedInfo *)diff1 diff2:(ModifiedInfo *)diff2 {
+    return diff1.removedRange.location < diff2.removedRange.location + diff2.removedRange.length && diff2.removedRange.location < diff1.removedRange.location + diff1.removedRange.length;
 }
 
-- (void)getDiff:(NSMutableArray *)diff content1:(NSString *)content1 range1:(NSRange)range1 content2:(NSString *)content2 range2:(NSRange)range2 {
-    NSString *subContent1 = [content1 substringWithRange:range1];
-    NSString *subContent2 = [content2 substringWithRange:range2];
+- (void)getDiff:(NSMutableArray *)diff content1:(NSArray *)content1 range1:(NSRange)range1 content2:(NSArray *)content2 range2:(NSRange)range2 {
+    NSArray *subContent1 = [content1 subarrayWithRange:range1];
+    NSArray *subContent2 = [content2 subarrayWithRange:range2];
     CommonLinesResult result = [self maxCommonLinesWithContent1:subContent1 content2:subContent2];
     if (result.length == 0) {
-        if (range1.length > 0) {
-            RemovedInfo *info = [[RemovedInfo alloc] init];
-            info.removedRange = range1;
-            [diff addObject:info];
-        }
-
-        if (range2.length > 0) {
-            InsertedInfo *info = [[InsertedInfo alloc] init];
-            info.location = range1.location;
-            info.insertedString = subContent2;
-            [diff addObject:info];
-        }
+        ModifiedInfo *info = [[ModifiedInfo alloc] init];
+        info.removedRange = range1;
+        info.insertedLines = subContent2;
+        [diff addObject:info];
     } else {
         [self getDiff:diff content1:content1 range1:NSMakeRange(range1.location, result.location1) content2:content2 range2:NSMakeRange(range2.location, result.location2)];
         [self getDiff:diff content1:content1 range1:NSMakeRange(range1.location + result.location1 + result.length, range1.length - result.location1 - result.length) content2:content2 range2:NSMakeRange(range2.location + result.location2 + result.length, range2.length - result.location2 - result.length)];
@@ -164,24 +113,24 @@ typedef struct {
 }
 
 // 求最大公共子串算法
-- (CommonLinesResult)maxCommonLinesWithContent1:(NSString *)content1 content2:(NSString *)content2 {
+- (CommonLinesResult)maxCommonLinesWithContent1:(NSArray *)content1 content2:(NSArray *)content2 {
     CommonLinesResult commonLinesResult;
     commonLinesResult.location1 = 0;
     commonLinesResult.location2 = 0;
     commonLinesResult.length = 0;
-    if (content1.length == 0 || content2.length == 0) {
+    if (content1.count == 0 || content2.count == 0) {
         return commonLinesResult;
     }
-    NSUInteger **result = malloc(sizeof(NSUInteger *) * content1.length);
-    for (NSUInteger index = 0; index < content1.length; ++index) {
-        result[index] = malloc(sizeof(NSUInteger) * content2.length);
+    NSUInteger **result = malloc(sizeof(NSUInteger *) * content1.count);
+    for (NSUInteger index = 0; index < content1.count; ++index) {
+        result[index] = malloc(sizeof(NSUInteger) * content2.count);
     }
 
-    for (NSUInteger i = 0; i < content1.length; ++i) {
-        for (NSUInteger j = 0; j < content2.length; ++j) {
-            unichar char1 = [content1 characterAtIndex:i];
-            unichar char2 = [content2 characterAtIndex:j];
-            if (char1 == char2) {
+    for (NSUInteger i = 0; i < content1.count; ++i) {
+        for (NSUInteger j = 0; j < content2.count; ++j) {
+            NSString *line1 = [content1 objectAtIndex:i];
+            NSString *line2 = [content2 objectAtIndex:j];
+            if ([line1 isEqualToString:line2]) {
                 if (i > 0 && j > 0) {
                     result[i][j] = result[i-1][j-1] + 1;
                 } else {
@@ -198,7 +147,7 @@ typedef struct {
         }
     }
 
-    for (NSUInteger index = 0; index < content1.length; ++index) {
+    for (NSUInteger index = 0; index < content1.count; ++index) {
         free(result[index]);
     }
     free(result);
@@ -273,13 +222,13 @@ typedef struct {
     return [NSMutableArray arrayWithArray:[string componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]];
 }
 
-+ (void)saveLines:(NSArray *)lines toFile:(NSString *)file {
++ (void)saveLines:(NSArray *)lines toFile:(NSString *)file addNewLineAtEndOfFile:(BOOL)add {
     NSMutableString *string = [NSMutableString string];
     for (NSString *line in lines) {
         [string appendString:line];
         [string appendString:@"\n"];
     }
-    if (string.length > 0) {
+    if (!add && string.length > 0) {
         [string deleteCharactersInRange:NSMakeRange(string.length - 1, 1)];
     }
     NSString *path = [[self currentDirectoryPath] stringByAppendingPathComponent:file];
@@ -346,13 +295,21 @@ int main(int argc, const char * argv[]) {
     @autoreleasepool {
         NSArray *files = [ConflictManager conflictFiles];
         for (NSString *fileName in files) {
-            printf("正在以下文件\"%s\"中查找冲突……", [fileName cStringUsingEncoding:NSUTF8StringEncoding]);
+            printf("正在以下文件 \"%s\" 中查找冲突……\n", [fileName cStringUsingEncoding:NSUTF8StringEncoding]);
             NSMutableArray *lines = [ConflictManager linesFromFile:fileName];
             Conflict *conflict = [ConflictManager findFirstConflictInLines:lines];
+            NSString *conflictContentPath = [[ConflictManager currentDirectoryPath] stringByAppendingPathComponent:@"conflict_content.con"];
+            if ([[NSFileManager defaultManager] fileExistsAtPath:conflictContentPath]) {
+                NSMutableArray *resultLines = [[ConflictManager linesFromFile:@"conflict_content.con"] mutableCopy];
+                [resultLines removeLastObject];
+                [lines replaceObjectsInRange:NSMakeRange(conflict.mark1, conflict.mark4 - conflict.mark1 + 1) withObjectsFromArray:resultLines];
+                [ConflictManager saveLines:lines toFile:fileName addNewLineAtEndOfFile:NO];
+                conflict = [ConflictManager findFirstConflictInLines:lines];
+                [[NSFileManager defaultManager] removeItemAtPath:conflictContentPath error:nil];
+            }
             while (conflict) {
                 printf("冲突内容：\n");
                 outputLines([lines subarrayWithRange:NSMakeRange(conflict.mark1, conflict.mark4 - conflict.mark1 + 1)]);
-                printf("正在解决冲突，请稍候……\n");
                 NSArray *resultLines = [conflict resolveConflict];
                 if (resultLines) {
                     printf("自动解决冲突结果：\n");
@@ -361,37 +318,42 @@ int main(int argc, const char * argv[]) {
                     } else {
                         printf("<no content>\n");
                     }
+                    printf("请选择操作(a:自动解决|h:使用HEAD版本|t:使用另一版本|v:在vim中编辑|m:显示两边diff手动解决):");
                 } else {
                     printf("无法自动解决冲突！\n");
+                    printf("请选择操作(h:使用HEAD版本|t:使用另一版本|v:在vim中编辑|m:显示两边diff手动解决):");
                 }
-                printf("请选择操作(a:自动解决|h:使用HEAD版本|t:使用另一版本|m:手动解决):");
+
                 while (YES) {
                     char ch = getchar();
                     if (resultLines && (ch == 'a' || ch == 'A')) {
                         [lines replaceObjectsInRange:NSMakeRange(conflict.mark1, conflict.mark4 - conflict.mark1 + 1) withObjectsFromArray:resultLines];
-                        [ConflictManager saveLines:lines toFile:fileName];
+                        [ConflictManager saveLines:lines toFile:fileName addNewLineAtEndOfFile:NO];
                         conflict = [ConflictManager findFirstConflictInLines:lines];
                         break;
                     } else if (ch == 'h' || ch == 'H') {
                         [lines removeObjectsInRange:NSMakeRange(conflict.mark2, conflict.mark4 - conflict.mark2 + 1)];
                         [lines removeObjectsInRange:NSMakeRange(conflict.mark1, 1)];
-                        [ConflictManager saveLines:lines toFile:fileName];
+                        [ConflictManager saveLines:lines toFile:fileName addNewLineAtEndOfFile:NO];
                         conflict = [ConflictManager findFirstConflictInLines:lines];
                         break;
                     } else if (ch == 't' || ch == 'T') {
                         [lines removeObjectsInRange:NSMakeRange(conflict.mark4, 1)];
                         [lines removeObjectsInRange:NSMakeRange(conflict.mark1, conflict.mark3 - conflict.mark1 + 1)];
-                        [ConflictManager saveLines:lines toFile:fileName];
+                        [ConflictManager saveLines:lines toFile:fileName addNewLineAtEndOfFile:NO];
                         conflict = [ConflictManager findFirstConflictInLines:lines];
                         break;
                     } else if (ch == 'm' || ch == 'M') {
                         [conflict saveConflict];
                         [fileName writeToFile:[[ConflictManager currentDirectoryPath] stringByAppendingPathComponent:@"conflict_file.con"] atomically:YES encoding:NSUTF8StringEncoding error:nil];
                         return 0;
+                    } else if (ch == 'v' || ch == 'V') {
+                        [ConflictManager saveLines:[lines subarrayWithRange:NSMakeRange(conflict.mark1, conflict.mark4 - conflict.mark1 + 1)] toFile:@"conflict_content.con" addNewLineAtEndOfFile:YES];
+                        return 0;
                     }
                 }
             }
-            printf("文件\"%s\"已无冲突，是否暂存文件(y/n)？", [fileName cStringUsingEncoding:NSUTF8StringEncoding]);
+            printf("文件 \"%s\" 已无冲突，是否暂存文件(y/n)？", [fileName cStringUsingEncoding:NSUTF8StringEncoding]);
             while (YES) {
                 char ch = getchar();
                 if (ch == 'y' || ch == 'Y') {
