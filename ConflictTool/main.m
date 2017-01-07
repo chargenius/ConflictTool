@@ -98,6 +98,9 @@ typedef struct {
 }
 
 - (void)getDiff:(NSMutableArray *)diff content1:(NSArray *)content1 range1:(NSRange)range1 content2:(NSArray *)content2 range2:(NSRange)range2 {
+    if (range1.length == 0 && range2.length == 0) {
+        return;
+    }
     NSArray *subContent1 = [content1 subarrayWithRange:range1];
     NSArray *subContent2 = [content2 subarrayWithRange:range2];
     CommonLinesResult result = [self maxCommonLinesWithContent1:subContent1 content2:subContent2];
