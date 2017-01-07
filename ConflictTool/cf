@@ -1,0 +1,13 @@
+#!/bin/bash
+conflict
+
+if [ -f conflict_ID1.con ]; then
+ID1=`cat conflict_ID1.con`
+ID2=`cat conflict_ID2.con`
+ID3=`cat conflict_ID3.con`
+rm conflict_ID1.con
+rm conflict_ID2.con
+rm conflict_ID3.con
+git diff $ID2 $ID1
+git diff $ID2 $ID3
+fi

@@ -8,17 +8,19 @@
 
 /* Begin PBXBuildFile section */
 		2D34F49C1E1E3F4600AC3278 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 2D34F49B1E1E3F4600AC3278 /* main.m */; };
+		2D4D77D91E20BA9700EB3E5C /* cf in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2D4D77D51E20B69B00EB3E5C /* cf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		2D34F4961E1E3F4500AC3278 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
+			buildActionMask = 12;
+			dstPath = usr/local/bin;
 			dstSubfolderSpec = 0;
 			files = (
+				2D4D77D91E20BA9700EB3E5C /* cf in CopyFiles */,
 			);
-			runOnlyForDeploymentPostprocessing = 1;
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -30,6 +32,7 @@
 		2D34F4A71E1E569100AC3278 /* libsystem_c.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsystem_c.tbd; path = usr/lib/system/libsystem_c.tbd; sourceTree = SDKROOT; };
 		2D34F4AA1E1E56FA00AC3278 /* libSystem.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libSystem.tbd; path = usr/lib/libSystem.tbd; sourceTree = SDKROOT; };
 		2D34F4AC1E1E571800AC3278 /* dylib1.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = dylib1.o; path = usr/lib/dylib1.o; sourceTree = SDKROOT; };
+		2D4D77D51E20B69B00EB3E5C /* cf */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = cf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,6 +67,7 @@
 			isa = PBXGroup;
 			children = (
 				2D34F49B1E1E3F4600AC3278 /* main.m */,
+				2D4D77D51E20B69B00EB3E5C /* cf */,
 			);
 			path = ConflictTool;
 			sourceTree = "<group>";
@@ -90,6 +94,7 @@
 				2D34F4941E1E3F4500AC3278 /* Sources */,
 				2D34F4951E1E3F4500AC3278 /* Frameworks */,
 				2D34F4961E1E3F4500AC3278 /* CopyFiles */,
+				2D4D77D71E20B7CF00EB3E5C /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -131,6 +136,22 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		2D4D77D71E20B7CF00EB3E5C /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "chmod a+x \"/usr/local/bin/cf\"\nditto \"${TARGET_BUILD_DIR}/${PRODUCT_NAME}\" \"/usr/local/bin/\"\nchmod a+x \"/usr/local/bin/${PRODUCT_NAME}\"";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		2D34F4941E1E3F4500AC3278 /* Sources */ = {
@@ -238,6 +259,7 @@
 					"$(inherited)",
 					"$(SDKROOT)/usr/lib/system",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 10.10;
 				PRODUCT_NAME = conflict;
 			};
 			name = Debug;
@@ -249,6 +271,7 @@
 					"$(inherited)",
 					"$(SDKROOT)/usr/lib/system",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 10.10;
 				PRODUCT_NAME = conflict;
 			};
 			name = Release;
@@ -272,6 +295,7 @@
 				2D34F4A11E1E3F4600AC3278 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
