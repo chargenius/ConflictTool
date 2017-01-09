@@ -15,8 +15,8 @@
 		2D34F4961E1E3F4500AC3278 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 12;
-			dstPath = usr/local/bin;
-			dstSubfolderSpec = 0;
+			dstPath = "";
+			dstSubfolderSpec = 16;
 			files = (
 				2D4D77D91E20BA9700EB3E5C /* cf in CopyFiles */,
 			);
@@ -149,7 +149,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "chmod a+x \"/usr/local/bin/cf\"\nditto \"${TARGET_BUILD_DIR}/${PRODUCT_NAME}\" \"/usr/local/bin/\"\nchmod a+x \"/usr/local/bin/${PRODUCT_NAME}\"";
+			shellScript = "chmod a+x \"${TARGET_BUILD_DIR}/cf\"\nchmod a+x \"${TARGET_BUILD_DIR}/${PRODUCT_NAME}\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 
