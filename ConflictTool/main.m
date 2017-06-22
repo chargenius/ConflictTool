@@ -247,7 +247,7 @@ typedef struct {
             continue;
         }
         NSArray *contents = [line componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-        if ([contents[0] integerValue] == 100644) {
+        if ([contents[0] integerValue] == 100644 || [contents[0] integerValue] == 100755) {
             NSString *name = contents[3];
             [files setObject:@([files[name] integerValue] + 1) forKey:name];
         }
