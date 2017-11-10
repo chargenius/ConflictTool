@@ -246,10 +246,12 @@ typedef struct {
         if (line.length == 0) {
             continue;
         }
-        NSArray *contents = [line componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-        if ([contents[0] integerValue] == 100644 || [contents[0] integerValue] == 100755) {
-            NSString *name = contents[3];
-            [files setObject:@([files[name] integerValue] + 1) forKey:name];
+        NSString *fileFormat = [line substringWithRange:NSMakeRange(0, 6)];
+        __used NSString *fileSha = [line substringWithRange:NSMakeRange(7, 40)];
+        __used NSString *fileZone = [line substringWithRange:NSMakeRange(48, 1)];
+        NSString *fileName = [line substringFromIndex:50];
+        if ([fileFormat integerValue] == 100644 || [fileFormat integerValue] == 100755) {
+            [files setObject:@([files[fileName] integerValue] + 1) forKey:fileName];
         }
     }
 
